@@ -4,10 +4,16 @@ This guide describes how to validate behavior in this package after code or SQL 
 
 ## Run All Tests
 
-From [meta_update_middleware](meta_update_middleware):
+From repository root [vxMetadataUpdater](.):
 
 ```bash
 go test ./...
+```
+
+If you see failures only in full-suite runs, disable test cache and show verbose output:
+
+```bash
+go test -count=1 -v ./...
 ```
 
 ## Run Specific Test Groups
@@ -25,7 +31,7 @@ Files:
 ### Query Profiling Helpers
 
 ```bash
-go test -run 'TestSetQueryProfilingOptions|TestNewQueryOptions|TestRecordQuerySummary|TestPrintQueryProfilingSummary'
+go test -run 'TestSetQueryProfilingOptions|TestNewQueryOptions|TestRecordQuerySummary|TestPrintQueryProfilingSummary|TestConfigureCapellaTLSOptions'
 ```
 
 Files:
@@ -83,6 +89,21 @@ This verifies the current behavior (non-zero process exit) without terminating t
 For pull requests touching this package, run at minimum:
 
 ```bash
-cd meta_update_middleware
 go test ./...
+```
+
+## Troubleshooting Full-Suite Failures
+
+When individual tests pass but `go test ./...` fails:
+
+- Confirm you are in repo root before running tests.
+- Re-run uncached: `go test -count=1 ./...`
+- Re-run with randomized order to expose hidden state coupling: `go test -count=1 -shuffle=on ./...`
+- Re-run with race detector: `go test -count=1 -race ./...`
+- Capella TLS tests now isolate `CACERT_REQUIRED` and `CACERT_FILE` internally. If testing an older branch, clear those shell variables before running the suite.
+
+If it still fails, capture and share the first failing block:
+
+```bash
+go test -count=1 -v ./... 2>&1 | tee /tmp/vxmetadataupdater-tests.log
 ```
