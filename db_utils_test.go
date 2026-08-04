@@ -18,14 +18,12 @@ import (
 	"github.com/couchbase/gocb/v2"
 )
 
-// ---- helpers ----------------------------------------------------------------
-
 func writeTestCACertPEM(t *testing.T, dir string) string {
 	t.Helper()
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		t.Fatalf("failed to generate rsa key: %v", err)
+		t.Fatalf("failed to generate key: %v", err)
 	}
 
 	tpl := &x509.Certificate{
@@ -240,8 +238,9 @@ func TestConfigureCapellaTLSOptions(t *testing.T) {
 	})
 
 	t.Run("Cloud_RequiresCACertPath", func(t *testing.T) {
-		os.Setenv("CACERT_REQUIRED", "true")
-		defer os.Unsetenv("CACERT_REQUIRED")
+		t.Setenv("CACERT_REQUIRED", "true")
+		// Ensure this subtest does not inherit a shell-provided CACERT_FILE.
+		t.Setenv("CACERT_FILE", "")
 
 		options := gocb.ClusterOptions{}
 		err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
@@ -255,11 +254,9 @@ func TestConfigureCapellaTLSOptions(t *testing.T) {
 
 	t.Run("Cloud_SetsTLSRootCAs", func(t *testing.T) {
 		dir := t.TempDir()
-		writeTestCACertPEM(t, dir)
-		os.Setenv("CACERT_FILE", dir+"/ca.pem")
-		os.Setenv("CACERT_REQUIRED", "true")
-		defer os.Unsetenv("CACERT_FILE")
-		defer os.Unsetenv("CACERT_REQUIRED")
+		certPath := writeTestCACertPEM(t, dir)
+		t.Setenv("CACERT_FILE", certPath)
+		t.Setenv("CACERT_REQUIRED", "true")
 
 		options := gocb.ClusterOptions{}
 		err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)

@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// This file tests the metadata update functionality
+
 // ---------- parseConfig ----------
 
 func TestParseConfig_ValidSettings(t *testing.T) {
