@@ -47,7 +47,7 @@ func init() {
 
 // writeMetadata writes metadata to a local file when path is non-empty, otherwise upserts to Couchbase.
 func writeMetadata(conn CbConnection, metadata MetadataJSON, path string) {
-	if (path != "") {
+	if path != "" {
 		log.Println("writeMetadataToFile(" + path + ")")
 		writeStructToFile(metadata, path)
 		return
