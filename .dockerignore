@@ -1,0 +1,14 @@
+.git
+.history
+*.log
+*.tmp
+tmp/
+dist/
+bin/
+vximporter
+*.jsonl
+
+# Test files
+*_test.go
+*.test.go
+test_*.go
