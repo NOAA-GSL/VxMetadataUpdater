@@ -6,5 +6,9 @@ tmp/
 dist/
 bin/
 vximporter
-cb-importer
 *.jsonl
+
+# Test files
+*_test.go
+*.test.go
+test_*.go

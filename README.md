@@ -1,244 +1,269 @@
-# vxImporter
+# meta_update_middleware
 
-High-throughput Couchbase importer for JSON array files.
+Builds MATS GUI metadata documents from DD records in Couchbase.
 
-The program streams JSON documents from a top-level array, batches records, and upserts them to a target Couchbase collection using a concurrent worker pool.
+The tool reads app/docType definitions from a settings file, discovers model-level values from DD documents, and writes one consolidated metadata document per app.
 
-## Quick Start (60 Seconds)
+## What It Produces
 
-1. Build the binary:
+For each settings entry, this package writes one metadata document with key format:
 
-```bash
-go build -o vximporter ./vximporter.go
-```
+`MD:matsGui:<name>:COMMON:V01`
 
-1. Create a sample input file:
+Example app names from the default settings:
 
-```bash
-cat > data.json <<'EOF'
-[
-  {"id":"demo_1","name":"Demo Airline 1"},
-  {"id":"demo_2","name":"Demo Airline 2"}
-]
-EOF
-```
+- `ceiling`
+- `visibility`
+- `surface`
 
-1. Run the importer:
+The generated JSON includes model metadata such as:
 
-```bash
-./vximporter \
-  -conn "couchbase://127.0.0.1" \
-  -user "Administrator" \
-  -pass "password" \
-  -bucket "travel-sample" \
-  -scope "inventory" \
-  -collection "airline" \
-  -file "data.json"
-```
+- `fcstLens`
+- `regions`
+- `displayText`
+- `displayCategory`
+- `displayOrder`
+- `mindate`
+- `maxdate`
+- `numrecs`
 
-1. Optional Docker path:
-
-```bash
-docker build -t vximporter .
-docker run --rm \
-  -v "$(pwd)/data.json:/data/data.json:ro" \
-  vximporter \
-  -conn "couchbase://host.docker.internal" \
-  -user "Administrator" \
-  -pass "password" \
-  -bucket "travel-sample" \
-  -scope "inventory" \
-  -collection "airline" \
-  -file "/data/data.json"
-```
-
-## Features
-
-- Streams large input files without loading the entire dataset into memory.
-- Uses concurrent workers for improved ingestion throughput.
-- Executes bulk upsert operations with Couchbase Go SDK v2.
-- Uses the `id` field of each document as the Couchbase document key.
-- Emits summary metrics (successes, failures, elapsed time, throughput).
+For `docType == SUMS`, data keys are written to `variables`.
+For other docTypes (for example `CTC`), data keys are written to `thresholds`.
 
 ## Requirements
 
-- Go 1.25+
-- Couchbase Server reachable from your machine or container
-- Network access to Couchbase ports from runtime environment
+- Go version declared by [meta_update_middleware/go.mod](meta_update_middleware/go.mod)
+- Access to a Couchbase bucket/scope/collection that contains DD documents
+- Credentials YAML file
+- Settings JSON file
 
-## Project Layout
+## Build And Run
 
-- `vximporter.go`: Main program and import logic
-- `go.mod`: Module and dependency definitions
-- `Dockerfile`: Multi-stage container build
-- `.dockerignore`: Build context exclusions
-- `import.sh`: Native and Docker command examples
-
-## Build
-
-Build native binary:
+From [meta_update_middleware](meta_update_middleware):
 
 ```bash
-go build -o vximporter ./vximporter.go
+go build .
+./meta-update
 ```
 
-## Run (Native)
+Or run directly:
 
 ```bash
-./vximporter \
-  -conn "couchbase://127.0.0.1" \
-  -user "Administrator" \
-  -pass "password" \
-  -bucket "travel-sample" \
-  -scope "inventory" \
-  -collection "airline" \
-  -file "large_dataset.json" \
-  -workers 16 \
-  -batch-size 1000
+go run .
 ```
 
-## Docker
+## CI Workflow
 
-Build image:
+This repository uses GitHub Actions workflow [ci.yml](.github/workflows/ci.yml).
 
-```bash
-docker build -t vximporter .
-```
+### Triggers
 
-Run with local file mount:
+- Push to `main`
+- Push tags matching release patterns:
+  - `<major>.<minor>.<patch>`
+  - `<major>.<minor>.<patch>-rc<number>`
+- Pull requests
+- Manual runs (`workflow_dispatch`)
 
-```bash
-docker run --rm \
-  -v "$(pwd)/large_dataset.json:/data/data.json:ro" \
-  vximporter \
-  -conn "couchbase://host.docker.internal" \
-  -user "Administrator" \
-  -pass "password" \
-  -bucket "travel-sample" \
-  -scope "inventory" \
-  -collection "airline" \
-  -file "/data/data.json" \
-  -workers 16 \
-  -batch-size 1000
+### Pipeline Stages
+
+- `lint`: runs `go vet ./...` and enforces `gofmt`
+- `test`: runs `go test ./...`
+- `build-vxmetadataupdater`: builds and pushes a multi-arch container image (`linux/amd64`, `linux/arm64`)
+- `scan-vxmetadataupdater`: scans the published image with Trivy and uploads SARIF results to GitHub Security
+
+### Container Publishing
+
+Images are published to:
+
+- `ghcr.io/noaa-gsl/vxmetadataupdater`
+
+Generated tags include branch, PR, semver, short SHA, and `latest` on the default branch.
+
+### Security Scanning
+
+- Trivy fails the job on `HIGH` and `CRITICAL` findings in the console scan.
+- A SARIF report is always generated and uploaded to the GitHub Security tab.
+
+## CLI Flags
+
+### Core Input Flags
+
+- `-c`: path to credentials YAML
+  - default: `$HOME/credentials`
+- `-s`: path to settings JSON
+  - default: `./settings.json`
+- `-a`: app name filter
+  - default: empty (process all apps in settings)
+- `-p`: write output metadata JSON to a file path instead of writing to Couchbase
+  - default: empty (write to Couchbase)
+
+### Query Profiling Flags
+
+- `-query-metrics`: enable Couchbase query metrics
+  - default: `true`
+- `-query-profile`: profiling mode (`off`, `phases`, `timings`)
+  - default: `off`
+- `-query-slow-ms`: only log detailed query metadata when elapsed time is at least this threshold
+  - default: `500`
+- `-query-summary-top`: number of slow query templates included in the end-of-run summary
+  - use `0` to show all
+  - default: `10`
+
+### Runtime Profiling Flags
+
+- `-cpuprofile`: write CPU profile to file
+- `-memprofile`: write heap profile to file
+
+Detailed profiling guidance is in [meta_update_middleware/PROFILING.md](meta_update_middleware/PROFILING.md).
+
+## Credentials File Format
+
+Example:
+
+```yaml
+cb_host: couchbase://adb-cb1.example.org
+cb_user: my_user
+cb_password: my_password
+cb_bucket: vxdata
+cb_scope: _default
+cb_collection: METAR
+cb_timeout_seconds: 3600
 ```
 
 Notes:
 
-- `host.docker.internal` works on Docker Desktop for macOS/Windows.
-- On Linux, use your host IP or a user-defined Docker network path to Couchbase.
-
-## CLI Flags
-
-| Flag          | Default                 | Description                          |
-| ------------- | ----------------------- | ------------------------------------ |
-| `-conn`       | `couchbase://127.0.0.1` | Couchbase connection string          |
-| `-user`       | `Administrator`         | Couchbase username                   |
-| `-pass`       | `password`              | Couchbase password                   |
-| `-bucket`     | `default`               | Target bucket                        |
-| `-scope`      | `_default`              | Target scope                         |
-| `-collection` | `_default`              | Target collection                    |
-| `-file`       | `data.json`             | Input JSON array file path           |
-| `-batch-size` | `500`                   | Number of documents per bulk request |
-| `-workers`    | `8`                     | Number of concurrent workers         |
-
-## Input File Format
-
-The importer expects a top-level JSON array of objects:
-
-```json
-[ 
-  {"id":"airline_1","name":"Airline One","country":"USA"},
-  {"id":"airline_2","name":"Airline Two","country":"UK"},
-  {"id":"airline_3","name":"Airline Three","country":"DE"}
-]
+- If `cb_timeout_seconds` is omitted or `0`, the tool uses `3600` seconds for query timeout.
+- For multi-node targets, use a Couchbase connection string accepted by the Go SDK.
+- For Capella clusters!!! A capella cluster connection requires an additional
+  environment variable CACERT_FILE which defines the path to the root certifiacte for public access to the cluster. It is a .pem file that
+  looks like...
+  
+```text
+-----BEGIN CERTIFICATE-----
+MIIDFTCCAf2gAwIBAgIRANLVkgOvtaXiQJi0V6qeNtswDQYJKoZIhvcNAQELBQAw
+JDESMBAGA1UECgwJQ291Y2hiYXNlMQ4wDAYDVQQLDAVDbG91ZDAeFw0xOTEyMDYy
+MjEyNTlaFw0yOTEyMDYyMzEyNTlaMCQxEjAQBgNVBAoMCUNvdWNoYmFzZTEOMAwG.....
+.....
+-----END CERTIFICATE-----
 ```
 
-Document key behavior:
+In the event that the cb_host contains "cloud.couchbase.com" it will be
+assumed that the host is a Capella cluster and a certificate will be required
+in addition to the user and password.
 
-1. `id` is required for every document.
-2. The `id` value is used as the Couchbase key.
-3. Documents without a valid `id` are counted as failures.
+The certificate can be obtained from the Capella UI under the "Connection" tab.
 
-## Runtime Behavior
+## Settings File Format
 
-- Input must be a valid JSON array (`[` ... `]`).
-- The file is streamed; the full array is not loaded into memory.
-- Invalid JSON structure causes the import to stop with an error.
-- Documents without a valid `id` are counted as failures and skipped.
-- Bulk operation errors are logged; individual operation errors are counted.
-- Final report includes:
-  - elapsed time
-  - successful docs
-  - failed docs
-  - throughput (ops/sec)
+Example from [meta_update_middleware/settings.json](meta_update_middleware/settings.json):
 
-## Performance Tuning
+```json
+{
+ "metadata": [
+  {
+   "name": "ceiling",
+   "app": "cb-ceiling",
+   "docType": ["CTC"],
+   "subDocType": "CEILING"
+  }
+ ]
+}
+```
 
-- Increase `-workers` if Couchbase and network can handle more parallelism.
-- Increase `-batch-size` to reduce request overhead, but monitor latency and memory.
-- Use smaller values if you see timeouts or high cluster load.
-- Start from `-workers 8` and `-batch-size 500`, then tune incrementally.
+Fields:
+
+- `name`: used in generated metadata document key
+- `app`: app label stored in metadata
+- `docType`: array of docTypes to process for that app
+- `subDocType`: DD subDocType filter
+
+## Common Commands
+
+Run for all apps in settings:
+
+```bash
+go run . -c ~/credentials -s ./settings.json
+```
+
+Run for one app:
+
+```bash
+go run . -c ~/credentials -s ./settings.json -a ceiling
+```
+
+Write output JSON to a local file (no DB write):
+
+```bash
+go run . -c ~/credentials -s ./settings.json -a ceiling -p ./metadata_ceiling.json
+```
+
+Run with query and runtime profiling enabled:
+
+```bash
+go run . -c ~/credentials -s ./settings.json -a ceiling \
+ -query-profile=timings -query-slow-ms=0 -query-summary-top=20 \
+ -cpuprofile cpu.pprof -memprofile mem.pprof
+```
+
+## Data Flow Summary
+
+1. Read settings and credentials.
+2. Open Couchbase connection.
+3. For each selected app/docType:
+
+- get models requiring metadata
+- read data keys, forecast lengths, regions, display fields, and min/max/count stats
+- assemble one `MetadataJSON` document with `models[]`
+
+1. Write metadata to Couchbase or file (`-p`).
+2. Print query profiling summary.
+
+## SQL Templates
+
+The middleware query templates live in [meta_update_middleware/sqls](meta_update_middleware/sqls).
+
+Current templates include:
+
+- `getModels.sql`
+- `getModelsNoData.sql`
+- `getModelsWithMetadata.sql`
+- `getDistinctDataKeys.sql`
+- `getDistinctFcstLen.sql`
+- `getDistinctRegion.sql`
+- `getDistinctDisplayText.sql`
+- `getDistinctDisplayCategory.sql`
+- `getDistinctDisplayOrder.sql`
+- `getMinMaxCountFloor.sql`
+
+Template integrity tests are implemented in [meta_update_middleware/sql_templates_test.go](meta_update_middleware/sql_templates_test.go).
 
 ## Testing
 
-Run unit tests:
+Run all package tests from [meta_update_middleware](meta_update_middleware):
 
 ```bash
 go test ./...
 ```
 
-Or via Makefile:
+The test suite covers:
 
-```bash
-make test
-```
+- config and credentials parsing
+- malformed JSON parse behavior
+- utility helpers
+- SQL template placeholder/substitution checks
+- query profiling state helpers
+- metadata file writing behavior
 
-Run integration tests (requires a reachable Couchbase target):
+See [meta_update_middleware/TESTING.md](meta_update_middleware/TESTING.md) for a focused test guide.
 
-```bash
-CB_CONN="couchbase://127.0.0.1" \
-CB_USER="Administrator" \
-CB_PASS="password" \
-CB_BUCKET="travel-sample" \
-CB_SCOPE="inventory" \
-CB_COLLECTION="airline" \
-go test -tags integration ./...
-```
+## Operational Notes
 
-Or via Makefile:
+- The executable logs with file and line (`log.Lshortfile`).
+- Invalid `-query-profile` values terminate execution.
+- If parsing settings JSON fails, current implementation exits via fatal log.
+- If `-p` is provided, metadata is written only to that file path for each processed app/docType iteration.
 
-```bash
-make test-integration
-```
+## Historical Notes
 
-Integration test notes:
-
-- Integration tests are excluded from default test runs.
-- If required env vars are not set, integration tests are skipped.
-- The integration test writes and reads one test document in the target collection.
-- Integration test file location: `tests/integration/integration_test.go`
-
-## Troubleshooting
-
-Connection failures:
-
-- Verify connection string, credentials, and cluster reachability.
-- Confirm bucket/scope/collection exist and credentials are authorized.
-
-File errors:
-
-- Ensure `-file` path exists and is readable.
-- For Docker, confirm the host file mount source path is correct.
-
-Import failures:
-
-- Validate the file is a JSON array of JSON objects.
-- Ensure every document includes a non-empty `id` field.
-- Review logs for bulk operation warnings and per-document errors.
-- Lower `-workers` and `-batch-size` if cluster saturation is suspected.
-
-## Security Notes
-
-- Avoid passing production passwords directly in shell history when possible.
-- Consider using environment-specific secret management in CI/CD.
-- Restrict Couchbase user permissions to only required buckets/scopes/collections.
+Legacy performance notes remain in [meta_update_middleware/docs/performance.txt](meta_update_middleware/docs/performance.txt).

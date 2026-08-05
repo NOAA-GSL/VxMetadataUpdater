@@ -11,7 +11,7 @@ RUN go mod download
 COPY . .
 
 # Build a static Linux binary.
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/vximporter ./vximporter.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/vxmetadataupdater .
 
 FROM alpine:3.22
 
@@ -19,6 +19,10 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /out/vximporter /usr/local/bin/vximporter
+RUN addgroup -S app && adduser -S -G app app
 
-ENTRYPOINT ["/usr/local/bin/vximporter"]
+COPY --from=builder /out/vxmetadataupdater /usr/local/bin/vxmetadataupdater
+
+USER app
+
+ENTRYPOINT ["/usr/local/bin/vxmetadataupdater"]
