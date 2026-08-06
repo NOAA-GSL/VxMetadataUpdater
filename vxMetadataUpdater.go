@@ -114,6 +114,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to parse config")
 	}
+	if path != "" {
+		selectedOutputs := countSelectedMetadataOutputs(conf, app)
+		if selectedOutputs > 1 {
+			log.Fatalf("-p writes a single metadata document; use -a to select one app or omit -p when multiple documents would be produced")
+		}
+	}
 
 	credentials := getCredentials(credentialsFilePath)
 
@@ -152,6 +158,19 @@ func main() {
 	printQueryProfilingSummary(querySummaryTop)
 
 	log.Printf("\tmeta update finished in %v\n", time.Since(start))
+}
+
+// countSelectedMetadataOutputs returns how many metadata documents will be emitted
+// for the selected app filter.
+func countSelectedMetadataOutputs(conf ConfigJSON, app string) int {
+	count := 0
+	for ds := 0; ds < len(conf.Metadata); ds++ {
+		if len(app) > 0 && app != conf.Metadata[ds].Name {
+			continue
+		}
+		count += len(conf.Metadata[ds].DocType)
+	}
+	return count
 }
 
 // updateMetadataForAppDocType queries Couchbase for all models matching app/doctype/subDocType,

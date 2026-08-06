@@ -10,13 +10,11 @@ services:
       - ./settings.json:/app/settings.json:ro
       - ${HOME}/credentials:/run/config/credentials:ro
       - ./output:/app/output
-      # Optional Capella CA cert mount; uncomment and set CACERT_FILE below if needed.
-      - ${HOME}/capella-root.pem:/app/certs/capella-root.pem:ro
     environment:
       VX_APP: ${VX_APP:-}
       VX_OUTPUT_PATH: ${VX_OUTPUT_PATH:-}
-      # Set to /app/certs/capella-root.pem when using Capella.
-      CACERT_FILE: ${CACERT_FILE:-}
+      # Increase when remote clusters need longer bucket readiness checks.
+      BUCKET_READY_TIMEOUT_SECONDS: ${BUCKET_READY_TIMEOUT_SECONDS:-60}
     command:
       - "-c"
       - "/run/config/credentials"

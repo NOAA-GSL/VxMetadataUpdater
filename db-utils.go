@@ -1,12 +1,11 @@
 package main
 
 import (
-	"crypto/x509"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -184,7 +183,7 @@ func printQueryProfilingSummary(limit int) {
 }
 
 // getDbConnection opens a Couchbase cluster connection using the supplied credentials.
-// It waits up to 15 seconds for the bucket to become ready before returning.
+// It waits up to a configurable timeout for the bucket to become ready before returning.
 func getDbConnection(cred Credentials) (conn CbConnection) {
 	log.Println("getDbConnection()")
 
@@ -207,9 +206,6 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 			QueryTimeout: time.Duration(timeout) * time.Second,
 		},
 	}
-	if err := configureCapellaTLSOptions(connectionString, &options); err != nil {
-		log.Fatal(err)
-	}
 
 	cluster, err := gocb.Connect(connectionString, options)
 	if err != nil {
@@ -224,7 +220,7 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
-	err = conn.Bucket.WaitUntilReady(15*time.Second, nil)
+	err = conn.Bucket.WaitUntilReady(bucketReadyTimeout(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -233,32 +229,22 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	return conn
 }
 
-// configureCapellaTLSOptions loads a CA certificate for Capella (cloud.couchbase.com) clusters.
-// It reads CACERT_FILE (path to PEM) and is a no-op when CACERT_REQUIRED is unset or the host is not Capella.
-func configureCapellaTLSOptions(connectionString string, options *gocb.ClusterOptions) error {
-	// if it isn't a Capella cluster or if CACERT_REQUIRED isn't set, we don't need to configure TLS options
-	if !strings.Contains(connectionString, "cloud.couchbase.com") || os.Getenv("CACERT_REQUIRED") == "" {
-		return nil
-	}
-	caPath := os.Getenv("CACERT_FILE")
-	if strings.TrimSpace(caPath) == "" {
-		return fmt.Errorf("CACERT_FILE must be set for cloud.couchbase.com hosts")
+// bucketReadyTimeout returns the wait duration for Bucket.WaitUntilReady.
+// BUCKET_READY_TIMEOUT_SECONDS can override the default for slower remote clusters.
+func bucketReadyTimeout() time.Duration {
+	seconds := 60
+	raw := strings.TrimSpace(os.Getenv("BUCKET_READY_TIMEOUT_SECONDS"))
+	if raw == "" {
+		return time.Duration(seconds) * time.Second
 	}
 
-	pemBytes, err := os.ReadFile(caPath)
-	if err != nil {
-		return fmt.Errorf("failed to read CACERT_FILE %q: %w", caPath, err)
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed <= 0 {
+		log.Printf("invalid BUCKET_READY_TIMEOUT_SECONDS=%q, using default %d", raw, seconds)
+		return time.Duration(seconds) * time.Second
 	}
 
-	roots := x509.NewCertPool()
-	if !roots.AppendCertsFromPEM(pemBytes) {
-		return fmt.Errorf("failed to parse CA cert PEM from %q", caPath)
-	}
-
-	options.SecurityConfig = gocb.SecurityConfig{
-		TLSRootCAs: roots,
-	}
-	return nil
+	return time.Duration(parsed) * time.Second
 }
 
 func queryWithSQLStringSA(scope *gocb.Scope, text string) (rv []string) {

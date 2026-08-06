@@ -31,7 +31,7 @@ Files:
 ### Query Profiling Helpers
 
 ```bash
-go test -run 'TestSetQueryProfilingOptions|TestNewQueryOptions|TestRecordQuerySummary|TestPrintQueryProfilingSummary|TestConfigureCapellaTLSOptions'
+go test -run 'TestSetQueryProfilingOptions|TestNewQueryOptions|TestBucketReadyTimeout|TestRecordQuerySummary|TestPrintQueryProfilingSummary'
 ```
 
 Files:
@@ -68,6 +68,30 @@ Files:
 
 - [meta_update_middleware/utils_test.go](meta_update_middleware/utils_test.go)
 
+### Integration Test (Tagged)
+
+The integration test in `tests/integration/integration_test.go` uses the build tag `integration` and does not run unless you pass `-tags integration`.
+
+Run:
+
+```bash
+go test -v -tags integration -test.fullpath=true -timeout 30s -run ^TestIntegration_UpsertAndGet ./tests/integration
+```
+
+Required environment variables:
+
+- `CB_CONN`
+- `CB_USER`
+- `CB_PASS`
+- `CB_BUCKET`
+- `CB_SCOPE`
+- `CB_COLLECTION`
+
+Behavior notes:
+
+- If `-tags integration` is omitted, you will typically see `testing: warning: no tests to run`.
+- If variables are missing, the test is skipped by design.
+
 ## Notes On The Malformed JSON Test
 
 The malformed JSON behavior test runs parseConfig in a subprocess because parseConfig currently uses fatal logging for decode errors.
@@ -100,7 +124,6 @@ When individual tests pass but `go test ./...` fails:
 - Re-run uncached: `go test -count=1 ./...`
 - Re-run with randomized order to expose hidden state coupling: `go test -count=1 -shuffle=on ./...`
 - Re-run with race detector: `go test -count=1 -race ./...`
-- Capella TLS tests now isolate `CACERT_REQUIRED` and `CACERT_FILE` internally. If testing an older branch, clear those shell variables before running the suite.
 
 If it still fails, capture and share the first failing block:
 

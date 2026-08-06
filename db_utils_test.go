@@ -2,53 +2,13 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"log"
-	"math/big"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 )
-
-func writeTestCACertPEM(t *testing.T, dir string) string {
-	t.Helper()
-
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("failed to generate key: %v", err)
-	}
-
-	tpl := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "unit-test-ca"},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(time.Hour),
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-	}
-
-	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
-	if err != nil {
-		t.Fatalf("failed to create cert: %v", err)
-	}
-
-	pemData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	path := filepath.Join(dir, "ca.pem")
-	if err := os.WriteFile(path, pemData, 0o600); err != nil {
-		t.Fatalf("failed to write cert file: %v", err)
-	}
-
-	return path
-}
 
 func resetQuerySummaryState() {
 	querySummaryState.Lock()
@@ -153,6 +113,36 @@ func TestNewQueryOptions_ReflectsCurrentProfilingConfig(t *testing.T) {
 	}
 }
 
+func TestBucketReadyTimeout(t *testing.T) {
+	t.Run("default when unset", func(t *testing.T) {
+		t.Setenv("BUCKET_READY_TIMEOUT_SECONDS", "")
+		if got := bucketReadyTimeout(); got != 60*time.Second {
+			t.Fatalf("expected default 60s, got %v", got)
+		}
+	})
+
+	t.Run("uses valid positive override", func(t *testing.T) {
+		t.Setenv("BUCKET_READY_TIMEOUT_SECONDS", "90")
+		if got := bucketReadyTimeout(); got != 90*time.Second {
+			t.Fatalf("expected 90s, got %v", got)
+		}
+	})
+
+	t.Run("invalid override falls back to default", func(t *testing.T) {
+		t.Setenv("BUCKET_READY_TIMEOUT_SECONDS", "abc")
+		if got := bucketReadyTimeout(); got != 60*time.Second {
+			t.Fatalf("expected fallback 60s, got %v", got)
+		}
+	})
+
+	t.Run("non-positive override falls back to default", func(t *testing.T) {
+		t.Setenv("BUCKET_READY_TIMEOUT_SECONDS", "0")
+		if got := bucketReadyTimeout(); got != 60*time.Second {
+			t.Fatalf("expected fallback 60s, got %v", got)
+		}
+	})
+}
+
 // ---- recordQuerySummary -----------------------------------------------------
 
 func TestRecordQuerySummary_AggregatesByTrimmedQueryText(t *testing.T) {
@@ -219,52 +209,6 @@ func TestPrintQueryProfilingSummary(t *testing.T) {
 		}
 		if strings.Contains(out, "query summary sql #3") {
 			t.Fatalf("expected only 2 rows in summary, got output: %s", out)
-		}
-	})
-}
-
-// ---- configureCapellaTLSOptions ---------------------------------------------
-
-func TestConfigureCapellaTLSOptions(t *testing.T) {
-	t.Run("NonCloud_NoOp", func(t *testing.T) {
-		options := gocb.ClusterOptions{}
-		err := configureCapellaTLSOptions("couchbase://localhost", &options)
-		if err != nil {
-			t.Fatalf("expected no error for non-cloud host, got: %v", err)
-		}
-		if options.SecurityConfig.TLSRootCAs != nil {
-			t.Fatalf("expected TLSRootCAs to remain nil for non-cloud host")
-		}
-	})
-
-	t.Run("Cloud_RequiresCACertPath", func(t *testing.T) {
-		t.Setenv("CACERT_REQUIRED", "true")
-		// Ensure this subtest does not inherit a shell-provided CACERT_FILE.
-		t.Setenv("CACERT_FILE", "")
-
-		options := gocb.ClusterOptions{}
-		err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
-		if err == nil {
-			t.Fatalf("expected error when CACERT_FILE is missing")
-		}
-		if !strings.Contains(err.Error(), "CACERT_FILE must be set") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("Cloud_SetsTLSRootCAs", func(t *testing.T) {
-		dir := t.TempDir()
-		certPath := writeTestCACertPEM(t, dir)
-		t.Setenv("CACERT_FILE", certPath)
-		t.Setenv("CACERT_REQUIRED", "true")
-
-		options := gocb.ClusterOptions{}
-		err := configureCapellaTLSOptions("couchbases://foo.cloud.couchbase.com", &options)
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
-		if options.SecurityConfig.TLSRootCAs == nil {
-			t.Fatalf("expected TLSRootCAs to be configured")
 		}
 	})
 }
