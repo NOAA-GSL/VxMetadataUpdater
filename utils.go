@@ -4,13 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 )
-
-// init runs before main() is evaluated
-func init() {
-	log.Println("utils:init()")
-}
 
 func getTabbedString(count int) (rv string) {
 	rv = ""
@@ -44,30 +38,6 @@ func jsonPrettyPrintStruct(in interface{}) string {
 	var out bytes.Buffer
 	json.Indent(&out, jsonText, "", "\t")
 	return out.String()
-}
-
-// walkJsonMap recursively prints a decoded JSON map to stdout, indented by depth.
-// Intended for debugging only.
-func walkJsonMap(val map[string]interface{}, depth int) {
-	for k, v := range val {
-		switch vv := v.(type) {
-		case string:
-			fmt.Println(getTabbedString(depth), k, ":", vv, " (string)")
-		case float64:
-			fmt.Println(getTabbedString(depth), k, ":", vv, " (float64)")
-		case []interface{}:
-			fmt.Println(getTabbedString(depth), k, ":", " (array)")
-			for i, u := range vv {
-				fmt.Println(getTabbedString(depth+1), i, u)
-			}
-		case map[string]interface{}:
-			fmt.Println(getTabbedString(depth), k, ":", " (map)")
-			m := v.(map[string]interface{})
-			walkJsonMap(m, depth+1)
-		default:
-			fmt.Println(getTabbedString(depth), k, vv, " (unknown)")
-		}
-	}
 }
 
 // ConvertSlice reinterprets a []any as []E using direct type assertions.

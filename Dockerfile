@@ -22,6 +22,7 @@ RUN apk add --no-cache ca-certificates
 RUN addgroup -S app && adduser -S -G app app
 
 COPY --from=builder /out/vxmetadataupdater /usr/local/bin/vxmetadataupdater
+COPY --from=builder /src/sqls /app/sqls
 
 USER app
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -198,7 +199,7 @@ cb_collection: "METAR"
 // writeTempFile writes content to a temp file and returns its path.
 func writeTempFile(t *testing.T, pattern, content string) string {
 	t.Helper()
-	f, err := os.CreateTemp(os.TempDir(), pattern)
+	f, err := os.CreateTemp(filepath.Dir(os.TempDir()), pattern)
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}

@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/couchbase/gocb/v2"
 )
 
 // safeIdentRe restricts query parameter substitution to prevent SQL injection.
@@ -22,11 +20,6 @@ func validateQueryParam(name, value string) {
 	if value != "" && !safeIdentRe.MatchString(value) {
 		log.Fatalf("query parameter %q contains invalid characters: %q", name, value)
 	}
-}
-
-// init runs before main() is evaluated
-func init() {
-	log.Println("template-queries:init()")
 }
 
 // readSQLTemplate searches for name in sqls/ relative to the working directory,
@@ -95,66 +88,6 @@ func getModelsNoData(conn CbConnection, dataset string, app string, doctype stri
 	return models_with_metatada_but_no_data
 }
 
-func removeMetadataForModelsWithNoData(conn CbConnection, dataset string, app string, doctype string, subDocType string, models_with_metatada_but_no_data []string) {
-	log.Println("removeMetadataForModelsWithNoData(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	fileContent, err := readSQLTemplate("deleteModelMetadata.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplDeleteModelMetadataSQL := string(fileContent)
-	tmplDeleteModelMetadataSQL = strings.Replace(tmplDeleteModelMetadataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
-	tmplDeleteModelMetadataSQL = strings.Replace(tmplDeleteModelMetadataSQL, "{{vxAPP}}", app, -1)
-	for i := 0; i < len(models_with_metatada_but_no_data); i++ {
-		delModelSQL := strings.Replace(tmplDeleteModelMetadataSQL, "{{vxMODEL}}", models_with_metatada_but_no_data[i], 1)
-		log.Println("delModelSQL:\n" + delModelSQL)
-		queryResult, err := conn.Scope.Query(
-			delModelSQL,
-			&gocb.QueryOptions{Adhoc: true},
-		)
-		if err != nil {
-			log.Fatal(err)
-		} else {
-			printQueryResult(queryResult)
-		}
-	}
-}
-
-func getModelsWithExistingMetadata(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
-	log.Println("getModelsWithExistingMetadata(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	validateQueryParam("app", app)
-	fileContent, err := readSQLTemplate("getModelsWithMetadata.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplgetModelsWithMetadataSQL := string(fileContent)
-	tmplgetModelsWithMetadataSQL = strings.Replace(tmplgetModelsWithMetadataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, 1)
-	tmplgetModelsWithMetadataSQL = strings.Replace(tmplgetModelsWithMetadataSQL, "{{vxAPP}}", app, -1)
-
-	models_with_existing_metadata := queryWithSQLStringSA(conn.Scope, tmplgetModelsWithMetadataSQL)
-	return models_with_existing_metadata
-}
-
-func initializeMetadataForModel(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) {
-	log.Println("initializeMetadataForModel(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
-	fileContent, err := readSQLTemplate("initializeMetadata.sql")
-	if err != nil {
-		log.Fatal(err)
-	}
-	tmplInitializeMetadataSQL := string(fileContent)
-	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
-	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxAPP}}", app, -1)
-	tmplInitializeMetadataSQL = strings.Replace(tmplInitializeMetadataSQL, "{{vxMODEL}}", model, -1)
-	log.Println(tmplInitializeMetadataSQL)
-	queryResult, err := conn.Scope.Query(
-		tmplInitializeMetadataSQL, &gocb.QueryOptions{Adhoc: true},
-	)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		printQueryResult(queryResult)
-	}
-}
-
 func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []string) {
 	log.Println("getDistinctDataKeys(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
 	validateQueryParam("doctype", doctype)
@@ -170,14 +103,7 @@ func getDistinctDataKeys(conn CbConnection, dataset string, app string, doctype 
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 	log.Println(tmplSQL)
-	result := queryWithSQLStringMAP(conn.Scope, tmplSQL)
-	// Convert []interface{} to []string
-	for _, v := range result {
-		if str, ok := v.(string); ok {
-			rv = append(rv, str)
-		}
-	}
-	return rv
+	return queryWithSQLStringSA(conn.Scope, tmplSQL)
 }
 
 func getDistinctFcstLen(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
