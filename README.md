@@ -4,6 +4,10 @@ Builds MATS GUI metadata documents from DD records in Couchbase.
 
 The tool reads app/docType definitions from a settings file, discovers model-level values from DD documents, and writes one consolidated metadata document per app.
 
+This utility depends heavily on having appropriate indexes configured in the database.
+There will be a runtime recorded in the output at the end of the run. Excessive runtime
+can be an indicator of inproper index configuration.
+
 ## What It Produces
 
 For each settings entry, this package writes one metadata document with key format:
