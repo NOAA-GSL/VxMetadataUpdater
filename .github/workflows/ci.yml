@@ -2,13 +2,22 @@ name: VxMetadataUpdater CI
 
 on:
   push:
+    # For now, run this job on all changes. Path
+    # filtering & required checks don't mix well.
+    # paths-ignore:
+    #   - "meta_update_middleware/**"
+    #   - "docs/**"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
       - "[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
-    branches:
-      - "**"
+    branches: [main]
   pull_request:
-  workflow_dispatch:
+    # For now, run this job on all changes. Path
+    # filtering & required checks don't mix well.
+    # paths-ignore:
+    #   - "meta_update_middleware/**"
+    #   - "docs/**"
+  workflow_dispatch: # Manually
 
 env:
   REGISTRY: ghcr.io/noaa-gsl/vxmetadataupdater
@@ -19,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - name: Setup Go
         uses: actions/setup-go@v6
         with:

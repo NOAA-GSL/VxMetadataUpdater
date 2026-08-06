@@ -64,14 +64,29 @@ For container build and runtime instructions, including bind-mounted credentials
 
 This repository uses GitHub Actions workflow [ci.yml](.github/workflows/ci.yml).
 
+
 ### Triggers
 
-- Push to `main`
+- Push to any branch
 - Push tags matching release patterns:
   - `<major>.<minor>.<patch>`
   - `<major>.<minor>.<patch>-rc<number>`
 - Pull requests
 - Manual runs (`workflow_dispatch`)
+
+### Expected Behavior
+
+- Commit and push to a feature branch:
+  - The CI workflow should run on that branch push.
+  - Jobs should execute in sequence: `lint`, `test`, `build-vxmetadataupdater`, then `scan-vxmetadataupdater`.
+
+- Open or update a pull request targeting `main`:
+  - The CI workflow should run for the pull request event.
+  - This provides pre-merge signal for linting, tests, image build, and scan steps.
+
+- Merge a feature branch into `main`:
+  - The merge commit push to `main` should trigger the workflow again.
+  - On default branch pushes, image tagging includes `latest` in addition to branch/SHA tags.
 
 ### Pipeline Stages
 
