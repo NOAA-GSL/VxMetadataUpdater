@@ -6,7 +6,6 @@ This document explains how to build and run VxMetadataUpdater with Docker.
 
 - Docker Desktop (or Docker Engine + Docker Compose plugin)
 - A Couchbase credentials file at `$HOME/credentials`
-- A Capella root certificate at `$HOME/capella-root-certificate.pem` (required by the current Compose configuration)
 
 ## Files Used
 
@@ -34,10 +33,14 @@ Run and rebuild in one command:
 
 The container runs the app entrypoint and passes:
 
-- `-c /tmp/credentials`
+- `-c /run/config/credentials`
 - `-s /app/settings.json`
 
-At startup, Compose mounts Docker secrets under `/run/secrets`, then the launch command copies credentials to `/tmp/credentials` and applies `chmod 600` so the app's file permission check passes.
+Compose bind-mounts credentials from `$HOME/credentials` to `/run/config/credentials`.
+
+The Compose environment sets:
+
+- `BUCKET_READY_TIMEOUT_SECONDS=60` (override when slower clusters need more time)
 
 ## Optional Runtime Flags
 
@@ -56,14 +59,15 @@ Write output to a mounted file under `./output`:
 
     VX_OUTPUT_PATH=/app/output/metadata.json docker compose up --build
 
-## Docker Secrets Setup
+If you use `-p`, also pass `-a` so only one metadata document is selected for output.
 
-The current Compose configuration reads secrets from host files:
+## Docker Bind Mount Setup
 
-- `credentials` secret from `$HOME/credentials`
-- `capella_root` secret from `$HOME/capella-root-certificate.pem`
+The current Compose configuration reads bind-mounted files from your host:
 
-Make sure both files exist before running `docker compose up`.
+- credentials file from `$HOME/credentials`
+
+Make sure the credentials file exists before running `docker compose up`.
 
 ## Stopping The Container
 
@@ -73,8 +77,7 @@ To stop:
 
 ## Troubleshooting
 
-- If Docker says a secret source file is missing, verify `$HOME/credentials` and `$HOME/capella-root-certificate.pem` exist.
-- If app startup fails due to credentials permissions, ensure the startup command still includes:
-  - copy from `/run/secrets/credentials` to `/tmp/credentials`
-  - `chmod 600 /tmp/credentials`
+- If Docker says a bind mount source file is missing, verify `$HOME/credentials` exists.
+- If app startup fails due to credentials permissions, run `chmod 600 ~/credentials`.
+- If startup fails with bucket readiness timeouts, increase `BUCKET_READY_TIMEOUT_SECONDS`.
 - If Compose command is not found, install Docker Desktop or the Docker Compose plugin.

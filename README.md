@@ -54,7 +54,7 @@ go run .
 
 ## Docker
 
-For container build and runtime instructions, including Docker secrets setup for credentials and Capella certs, see [README.docker.md](README.docker.md).
+For container build and runtime instructions, including bind-mounted credentials, see [README.docker.md](README.docker.md).
 
 ## CI Workflow
 
@@ -101,6 +101,7 @@ Generated tags include branch, PR, semver, short SHA, and `latest` on the defaul
   - default: empty (process all apps in settings)
 - `-p`: write output metadata JSON to a file path instead of writing to Couchbase
   - default: empty (write to Couchbase)
+  - when using `-p`, also set `-a` so a single metadata document is selected for output
 
 ### Query Profiling Flags
 
@@ -139,10 +140,8 @@ Notes:
 
 - If `cb_timeout_seconds` is omitted or `0`, the tool uses `3600` seconds for query timeout.
 - For multi-node targets, use a Couchbase connection string accepted by the Go SDK.
-- For Capella clusters!!! A capella cluster connection requires an additional
-  environment variable CACERT_FILE which defines the path to the root certifiacte for public access to the cluster. It is a .pem file that
-  looks like...
-  
+- For Capella clusters, ensure the runtime trust store includes the required CA chain for your endpoint.
+
 ```text
 -----BEGIN CERTIFICATE-----
 MIIDFTCCAf2gAwIBAgIRANLVkgOvtaXiQJi0V6qeNtswDQYJKoZIhvcNAQELBQAw
@@ -259,6 +258,14 @@ The test suite covers:
 - query profiling state helpers
 - metadata file writing behavior
 
+Run the tagged integration test explicitly:
+
+```bash
+go test -v -tags integration -test.fullpath=true -timeout 30s -run ^TestIntegration_UpsertAndGet ./tests/integration
+```
+
+Set these environment variables first: `CB_CONN`, `CB_USER`, `CB_PASS`, `CB_BUCKET`, `CB_SCOPE`, `CB_COLLECTION`.
+
 See [meta_update_middleware/TESTING.md](meta_update_middleware/TESTING.md) for a focused test guide.
 
 ## Operational Notes
@@ -266,7 +273,7 @@ See [meta_update_middleware/TESTING.md](meta_update_middleware/TESTING.md) for a
 - The executable logs with file and line (`log.Lshortfile`).
 - Invalid `-query-profile` values terminate execution.
 - If parsing settings JSON fails, current implementation exits via fatal log.
-- If `-p` is provided, metadata is written only to that file path for each processed app/docType iteration.
+- If `-p` is provided, pair it with `-a` so a single app/docType selection writes to the file path.
 
 ## Historical Notes
 

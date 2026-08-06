@@ -95,6 +95,30 @@ func TestParseConfig_EmptyMetadata(t *testing.T) {
 	}
 }
 
+func TestCountSelectedMetadataOutputs(t *testing.T) {
+	conf := ConfigJSON{
+		Metadata: []struct {
+			Name       string   `json:"name"`
+			App        string   `json:"app"`
+			SubDocType string   `json:"subDocType"`
+			DocType    StrArray `json:"docType"`
+		}{
+			{Name: "ceiling", DocType: StrArray{"CTC"}},
+			{Name: "surface", DocType: StrArray{"SUMS", "CTC"}},
+		},
+	}
+
+	if got := countSelectedMetadataOutputs(conf, ""); got != 3 {
+		t.Fatalf("expected 3 selected outputs for all apps, got %d", got)
+	}
+	if got := countSelectedMetadataOutputs(conf, "ceiling"); got != 1 {
+		t.Fatalf("expected 1 selected output for ceiling, got %d", got)
+	}
+	if got := countSelectedMetadataOutputs(conf, "missing"); got != 0 {
+		t.Fatalf("expected 0 selected outputs for missing app, got %d", got)
+	}
+}
+
 func TestParseConfig_MissingFile(t *testing.T) {
 	_, err := parseConfig("/nonexistent/path/settings.json")
 	if err == nil {
