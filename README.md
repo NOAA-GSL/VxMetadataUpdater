@@ -52,6 +52,10 @@ Or run directly:
 go run .
 ```
 
+## Docker
+
+For container build and runtime instructions, including Docker secrets setup for credentials and Capella certs, see [README.docker.md](README.docker.md).
+
 ## CI Workflow
 
 This repository uses GitHub Actions workflow [ci.yml](.github/workflows/ci.yml).

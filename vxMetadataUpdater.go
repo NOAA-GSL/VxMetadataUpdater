@@ -39,7 +39,6 @@ type Credentials struct {
 // init runs before main() is evaluated
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.Println("meta-update:init()")
 }
 
 func main() {
@@ -114,7 +113,6 @@ func main() {
 	conf, err := parseConfig(settingsFilePath)
 	if err != nil {
 		log.Fatal("Unable to parse config")
-		return
 	}
 
 	credentials := getCredentials(credentialsFilePath)
@@ -168,9 +166,10 @@ func updateMetadataForAppDocType(conn CbConnection, name string, app string, doc
 
 	// get models having metadata but no data (remove metadata for these)
 	// (note 'like %' is changed to 'like %25')
-	models_with_metatada_but_no_data := getModelsNoData(conn, name, app, doctype, subDocType)
-	log.Println("models_with_metatada_but_no_data:")
-	printStringArray(models_with_metatada_but_no_data)
+	// TODO: call removeMetadataForModelsWithNoData once deleteModelMetadata.sql is available
+	modelsWithNoData := getModelsNoData(conn, name, app, doctype, subDocType)
+	log.Println("modelsWithNoData:")
+	printStringArray(modelsWithNoData)
 
 	metadata := MetadataJSON{ID: "MD:matsGui:" + name + ":COMMON:V01", Name: name, App: app, Type: "MD", Version: "V01", Subset: "COMMON", DocType: "matsGui", Generated: true}
 	metadata.Updated = 0
@@ -264,7 +263,6 @@ func parseConfig(file string) (ConfigJSON, error) {
 	configFile, err := os.Open(file)
 	if err != nil {
 		log.Print("opening config file", err.Error())
-		configFile.Close()
 		return conf, err
 	}
 	defer configFile.Close()

@@ -40,23 +40,17 @@ type MetadataJSON struct {
 	Models    []Model `json:"models"`
 }
 
-// init runs before main() is evaluated
-func init() {
-	log.Println("write-to-db:init()")
-}
-
 // writeMetadata writes metadata to a local file when path is non-empty, otherwise upserts to Couchbase.
 func writeMetadata(conn CbConnection, metadata MetadataJSON, path string) {
 	if path != "" {
 		log.Println("writeMetadataToFile(" + path + ")")
 		writeStructToFile(metadata, path)
 		return
-	} else {
-		log.Println("writeMetadataToDb()")
-		_, err := conn.Collection.Upsert(metadata.ID, metadata, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
+	}
+	log.Println("writeMetadataToDb()")
+	_, err := conn.Collection.Upsert(metadata.ID, metadata, nil)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 

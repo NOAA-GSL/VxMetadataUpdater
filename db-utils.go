@@ -51,11 +51,6 @@ var querySummaryState = struct {
 	byKey: map[string]*querySummary{},
 }
 
-// init runs before main() is evaluated
-func init() {
-	log.Println("db-utils:init()")
-}
-
 // setQueryProfilingOptions configures the package-level query profiling settings.
 // profile must be one of "off", "phases", or "timings"; slowMs < 0 is clamped to 0.
 func setQueryProfilingOptions(metrics bool, profile string, slowMs int) {
@@ -219,20 +214,19 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	cluster, err := gocb.Connect(connectionString, options)
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
 
 	conn.Cluster = cluster
 	conn.Bucket = conn.Cluster.Bucket(bucketName)
 	conn.Collection = conn.Bucket.Collection(collection)
 	conn.vxDBTARGET = cred.Cb_bucket + "." + cred.Cb_scope + "." + cred.Cb_collection
+	validateQueryParam("vxDBTARGET", conn.vxDBTARGET)
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
 	err = conn.Bucket.WaitUntilReady(15*time.Second, nil)
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
 
 	conn.Scope = conn.Bucket.Scope(cred.Cb_scope)
@@ -267,19 +261,6 @@ func configureCapellaTLSOptions(connectionString string, options *gocb.ClusterOp
 	return nil
 }
 
-func queryWithSQLFile(scope *gocb.Scope, file string) (jsonOut []string) {
-	fileContent, err := os.ReadFile(file)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Convert []byte to string
-	text := string(fileContent)
-	fmt.Println(text)
-
-	return queryWithSQLStringSA(scope, text)
-}
-
 func queryWithSQLStringSA(scope *gocb.Scope, text string) (rv []string) {
 	log.Println("queryWithSQLStringSA(\n" + text + "\n)")
 	start := time.Now()
@@ -309,38 +290,6 @@ func queryWithSQLStringSA(scope *gocb.Scope, text string) (rv []string) {
 	}
 
 	finalizeQueryResult("queryWithSQLStringSA", text, start, queryResult)
-
-	return retValues
-}
-
-func queryWithSQLStringFA(scope *gocb.Scope, text string) (rv []float64) {
-	log.Println("queryWithSQLStringFA(\n" + text + "\n)")
-	start := time.Now()
-
-	queryResult, err := scope.Query(
-		text,
-		newQueryOptions(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	retValues := make([]float64, 0)
-
-	for queryResult.Next() {
-		var row interface{}
-		err := queryResult.Row(&row)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if f, ok := row.(float64); ok {
-			retValues = append(retValues, f)
-		} else {
-			log.Printf("queryWithSQLStringFA: unexpected row type %T, skipping", row)
-		}
-	}
-
-	finalizeQueryResult("queryWithSQLStringFA", text, start, queryResult)
 
 	return retValues
 }
@@ -409,36 +358,4 @@ func queryWithSQLStringMAP(scope *gocb.Scope, text string) (jsonOut []interface{
 
 	finalizeQueryResult("queryWithSQLStringMAP", text, start, queryResult)
 	return rows
-}
-
-func queryWithSQLFileJustPrint(scope *gocb.Scope, file string) {
-	fileContent, err := os.ReadFile(file)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Convert []byte to string
-	text := string(fileContent)
-	fmt.Println(text)
-
-	queryResult, err := scope.Query(
-		text,
-		newQueryOptions(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		printQueryResult(queryResult)
-	}
-}
-
-func printQueryResult(queryResult *gocb.QueryResult) {
-	for queryResult.Next() {
-		var result interface{}
-		err := queryResult.Row(&result)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(result)
-	}
 }
