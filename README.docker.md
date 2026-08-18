@@ -4,14 +4,18 @@ This document explains how to build and run VxMetadataUpdater with Docker.
 
 ## Prerequisites
 
-- Docker Desktop (or Docker Engine + Docker Compose plugin)
+- Docker Desktop or Docker Engine
+- Docker Compose plugin, only if you use the Compose commands
 - A Couchbase credentials file at `$HOME/credentials`
 
 ## Files Used
 
 - Docker image build config: `Dockerfile`
-- Container runtime config: `docker-compose.yml`
+- Optional Compose runtime config: `docker-compose.yml`
 - App settings mounted into the container: `settings.json`
+
+The Compose file is optional. You can build and run the same image directly with
+Docker commands.
 
 ## Build The Container Image
 
@@ -21,7 +25,80 @@ From the repository root, run:
 
 This builds the `vxmetadataupdater:local` image defined in `docker-compose.yml`.
 
-## Run The Container
+Without Compose, run:
+
+    docker build -t vxmetadataupdater:local .
+
+This builds the same local image from `Dockerfile`.
+
+## Run The Container Without Compose
+
+These examples use the published `ghcr.io/noaa-gsl/vxmetadataupdater:latest`
+image and pass `--pull always` so Docker checks for a newer image before each
+run.
+
+From the repository root, make sure the host output directory exists and the
+credentials file has secure permissions:
+
+    mkdir -p output
+    chmod 600 "$HOME/credentials"
+
+Run with default settings:
+
+```bash
+docker run --rm \
+  --pull always \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD/settings.json:/app/settings.json:ro" \
+  -v "$HOME/credentials:/run/config/credentials:ro" \
+  -v "$PWD/output:/app/output" \
+  -e BUCKET_READY_TIMEOUT_SECONDS=60 \
+  ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+  -c /run/config/credentials \
+  -s /app/settings.json
+```
+
+The `--user` option lets the container read a `0600` credentials file owned by
+your host user. The app rejects credentials files that are readable by group or
+others.
+
+Run only one app:
+
+```bash
+docker run --rm \
+  --pull always \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD/settings.json:/app/settings.json:ro" \
+  -v "$HOME/credentials:/run/config/credentials:ro" \
+  -v "$PWD/output:/app/output" \
+  -e BUCKET_READY_TIMEOUT_SECONDS=60 \
+  ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+  -c /run/config/credentials \
+  -s /app/settings.json \
+  -a ceiling
+```
+
+Write output to a mounted file under `./output`:
+
+```bash
+docker run --rm \
+  --pull always \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD/settings.json:/app/settings.json:ro" \
+  -v "$HOME/credentials:/run/config/credentials:ro" \
+  -v "$PWD/output:/app/output" \
+  -e BUCKET_READY_TIMEOUT_SECONDS=60 \
+  ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+  -c /run/config/credentials \
+  -s /app/settings.json \
+  -a ceiling \
+  -p /app/output/metadata.json
+```
+
+If you use `-p`, also pass `-a` so only one metadata document is selected for
+output.
+
+## Run The Container With Compose
 
 Run with default settings:
 
@@ -42,7 +119,7 @@ The Compose environment sets:
 
 - `BUCKET_READY_TIMEOUT_SECONDS=60` (override when slower clusters need more time)
 
-## Optional Runtime Flags
+## Optional Compose Runtime Flags
 
 The Compose file supports these optional environment variables:
 
@@ -63,15 +140,18 @@ If you use `-p`, also pass `-a` so only one metadata document is selected for ou
 
 ## Docker Bind Mount Setup
 
-The current Compose configuration reads bind-mounted files from your host:
+Both Docker workflows read bind-mounted files from your host:
 
 - credentials file from `$HOME/credentials`
 
-Make sure the credentials file exists before running `docker compose up`.
+Make sure the credentials file exists before running the container.
 
 ## Stopping The Container
 
-To stop:
+If you used `docker run --rm` in the foreground, press `Ctrl+C` to stop it. The
+container is removed automatically after it exits.
+
+If you used Compose, run:
 
     docker compose down
 
