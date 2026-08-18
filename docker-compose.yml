@@ -6,10 +6,15 @@ services:
     image: vxmetadataupdater:local
     container_name: vxmetadataupdater
     working_dir: /app
+    user: "${VX_UID:-1000}:${VX_GID:-1000}"
     volumes:
-      - ./settings.json:/app/settings.json:ro
-      - ${HOME}/credentials:/run/config/credentials:ro
       - ./output:/app/output
+    secrets:
+      - source: credentials_file
+        target: CREDENTIALS_FILE
+        uid: "${VX_UID:-1000}"
+        gid: "${VX_GID:-1000}"
+        mode: 0400
     environment:
       VX_APP: ${VX_APP:-}
       VX_OUTPUT_PATH: ${VX_OUTPUT_PATH:-}
@@ -17,10 +22,14 @@ services:
       BUCKET_READY_TIMEOUT_SECONDS: ${BUCKET_READY_TIMEOUT_SECONDS:-60}
     command:
       - "-c"
-      - "/run/config/credentials"
+      - "/run/secrets/CREDENTIALS_FILE"
       - "-s"
       - "/app/settings.json"
       - "-a"
       - "${VX_APP}"
       - "-p"
       - "${VX_OUTPUT_PATH}"
+
+secrets:
+  credentials_file:
+    file: ${HOME}/credentials

@@ -23,6 +23,7 @@ RUN addgroup -S app && adduser -S -G app app
 
 COPY --from=builder /out/vxmetadataupdater /usr/local/bin/vxmetadataupdater
 COPY --from=builder /src/sqls /app/sqls
+COPY --from=builder /src/settings.json /app/settings.json
 
 USER app
 

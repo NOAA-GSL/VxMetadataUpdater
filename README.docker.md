@@ -7,12 +7,13 @@ This document explains how to build and run VxMetadataUpdater with Docker.
 - Docker Desktop or Docker Engine
 - Docker Compose plugin, only if you use the Compose commands
 - A Couchbase credentials file at `$HOME/credentials`
+- Your host UID/GID values (used to map secret ownership in Compose)
 
 ## Files Used
 
 - Docker image build config: `Dockerfile`
 - Optional Compose runtime config: `docker-compose.yml`
-- App settings mounted into the container: `settings.json`
+- Default app settings baked into image at `/app/settings.json` (from repo `settings.json`)
 
 The Compose file is optional. You can build and run the same image directly with
 Docker commands.
@@ -49,7 +50,6 @@ Run with default settings:
 docker run --rm \
   --pull always \
   --user "$(id -u):$(id -g)" \
-  -v "$PWD/settings.json:/app/settings.json:ro" \
   -v "$HOME/credentials:/run/config/credentials:ro" \
   -v "$PWD/output:/app/output" \
   -e BUCKET_READY_TIMEOUT_SECONDS=60 \
@@ -68,7 +68,6 @@ Run only one app:
 docker run --rm \
   --pull always \
   --user "$(id -u):$(id -g)" \
-  -v "$PWD/settings.json:/app/settings.json:ro" \
   -v "$HOME/credentials:/run/config/credentials:ro" \
   -v "$PWD/output:/app/output" \
   -e BUCKET_READY_TIMEOUT_SECONDS=60 \
@@ -84,7 +83,6 @@ Write output to a mounted file under `./output`:
 docker run --rm \
   --pull always \
   --user "$(id -u):$(id -g)" \
-  -v "$PWD/settings.json:/app/settings.json:ro" \
   -v "$HOME/credentials:/run/config/credentials:ro" \
   -v "$PWD/output:/app/output" \
   -e BUCKET_READY_TIMEOUT_SECONDS=60 \
@@ -110,10 +108,20 @@ Run and rebuild in one command:
 
 The container runs the app entrypoint and passes:
 
-- `-c /run/config/credentials`
+- `-c /run/secrets/CREDENTIALS_FILE`
 - `-s /app/settings.json`
 
-Compose bind-mounts credentials from `$HOME/credentials` to `/run/config/credentials`.
+No host settings bind mount is required. The image includes `/app/settings.json`.
+
+Compose mounts credentials as a Docker secret named `CREDENTIALS_FILE`.
+Set `VX_UID` and `VX_GID` so secret ownership matches the container runtime user:
+
+    export VX_UID="$(id -u)"
+    export VX_GID="$(id -g)"
+
+Then run:
+
+    docker compose up --build
 
 The Compose environment sets:
 
@@ -138,13 +146,30 @@ Write output to a mounted file under `./output`:
 
 If you use `-p`, also pass `-a` so only one metadata document is selected for output.
 
-## Docker Bind Mount Setup
+## Docker Secret Setup
 
-Both Docker workflows read bind-mounted files from your host:
+Compose reads credentials as a Docker secret sourced from:
 
 - credentials file from `$HOME/credentials`
 
 Make sure the credentials file exists before running the container.
+
+## Optional Settings Override
+
+If you want custom settings at runtime, bind mount another settings file over
+`/app/settings.json`:
+
+```bash
+docker run --rm \
+    --pull always \
+    --user "$(id -u):$(id -g)" \
+    -v "$PWD/my-settings.json:/app/settings.json:ro" \
+    -v "$HOME/credentials:/run/config/credentials:ro" \
+    -v "$PWD/output:/app/output" \
+    ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+    -c /run/config/credentials \
+    -s /app/settings.json
+```
 
 ## Stopping The Container
 
@@ -158,6 +183,7 @@ If you used Compose, run:
 ## Troubleshooting
 
 - If Docker says a bind mount source file is missing, verify `$HOME/credentials` exists.
-- If app startup fails due to credentials permissions, run `chmod 600 ~/credentials`.
+- If app startup fails with `permission denied` on `/run/secrets/CREDENTIALS_FILE`, ensure `VX_UID` and `VX_GID` match the process user in the container.
+- If app startup fails due to credentials permissions for direct bind mounts, run `chmod 600 ~/credentials`.
 - If startup fails with bucket readiness timeouts, increase `BUCKET_READY_TIMEOUT_SECONDS`.
 - If Compose command is not found, install Docker Desktop or the Docker Compose plugin.
