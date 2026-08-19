@@ -46,52 +46,63 @@ credentials file has secure permissions:
 
 Run with default settings:
 
-```bash
-docker run --rm \
-  --pull always \
-  --user "$(id -u):$(id -g)" \
-  -v "$HOME/credentials:/run/config/credentials:ro" \
-  -v "$PWD/output:/app/output" \
-  -e BUCKET_READY_TIMEOUT_SECONDS=60 \
-  ghcr.io/noaa-gsl/vxmetadataupdater:latest \
-  -c /run/config/credentials \
-  -s /app/settings.json
-```
+    docker run --rm \
+    --pull always \
+    --user "$(id -u):$(id -g)" \
+    -v "$HOME/credentials:/run/config/credentials:ro" \
+    -v "$PWD/output:/app/output" \
+    -e BUCKET_READY_TIMEOUT_SECONDS=60 \
+    ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+    -c /run/config/credentials \
+    -s /app/settings.json
 
 The `--user` option lets the container read a `0600` credentials file owned by
 your host user. The app rejects credentials files that are readable by group or
 others.
 
+If the credentials file belongs to a service account instead of the user running
+Docker, run the container with the credentials file owner's UID/GID. On Linux:
+
+    docker run --rm \
+        --pull always \
+        --user "$(stat -c '%u:%g' /home/amb-verif/credentials)" \
+        --mount type=bind,source=/data-ingest/data/working,target=/opt/data \
+        --mount type=bind,source=/home/amb-verif/credentials,target=/run/secrets/CREDENTIALS_FILE,readonly \
+        --mount type=bind,source=/home/amb-verif/metadata-settings.json,target=/app/settings.json,readonly \
+        --env LOG_LEVEL=DEBUG \
+        ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+        -c /run/secrets/CREDENTIALS_FILE \
+        -s /app/settings.json
+
+Without `--user`, the image runs as its built-in `app` user, which usually cannot
+read a host-owned `0600` bind-mounted credentials file.
+
 Run only one app:
 
-```bash
-docker run --rm \
-  --pull always \
-  --user "$(id -u):$(id -g)" \
-  -v "$HOME/credentials:/run/config/credentials:ro" \
-  -v "$PWD/output:/app/output" \
-  -e BUCKET_READY_TIMEOUT_SECONDS=60 \
-  ghcr.io/noaa-gsl/vxmetadataupdater:latest \
-  -c /run/config/credentials \
-  -s /app/settings.json \
-  -a ceiling
-```
+    docker run --rm \
+    --pull always \
+    --user "$(id -u):$(id -g)" \
+    -v "$HOME/credentials:/run/config/credentials:ro" \
+    -v "$PWD/output:/app/output" \
+    -e BUCKET_READY_TIMEOUT_SECONDS=60 \
+    ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+    -c /run/config/credentials \
+    -s /app/settings.json \
+    -a ceiling
 
 Write output to a mounted file under `./output`:
 
-```bash
-docker run --rm \
-  --pull always \
-  --user "$(id -u):$(id -g)" \
-  -v "$HOME/credentials:/run/config/credentials:ro" \
-  -v "$PWD/output:/app/output" \
-  -e BUCKET_READY_TIMEOUT_SECONDS=60 \
-  ghcr.io/noaa-gsl/vxmetadataupdater:latest \
-  -c /run/config/credentials \
-  -s /app/settings.json \
-  -a ceiling \
-  -p /app/output/metadata.json
-```
+    docker run --rm \
+    --pull always \
+    --user "$(id -u):$(id -g)" \
+    -v "$HOME/credentials:/run/config/credentials:ro" \
+    -v "$PWD/output:/app/output" \
+    -e BUCKET_READY_TIMEOUT_SECONDS=60 \
+    ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+    -c /run/config/credentials \
+    -s /app/settings.json \
+    -a ceiling \
+    -p /app/output/metadata.json
 
 If you use `-p`, also pass `-a` so only one metadata document is selected for
 output.
@@ -159,17 +170,15 @@ Make sure the credentials file exists before running the container.
 If you want custom settings at runtime, bind mount another settings file over
 `/app/settings.json`:
 
-```bash
-docker run --rm \
-    --pull always \
-    --user "$(id -u):$(id -g)" \
-    -v "$PWD/my-settings.json:/app/settings.json:ro" \
-    -v "$HOME/credentials:/run/config/credentials:ro" \
-    -v "$PWD/output:/app/output" \
-    ghcr.io/noaa-gsl/vxmetadataupdater:latest \
-    -c /run/config/credentials \
-    -s /app/settings.json
-```
+    docker run --rm \
+        --pull always \
+        --user "$(id -u):$(id -g)" \
+        -v "$PWD/my-settings.json:/app/settings.json:ro" \
+        -v "$HOME/credentials:/run/config/credentials:ro" \
+        -v "$PWD/output:/app/output" \
+        ghcr.io/noaa-gsl/vxmetadataupdater:latest \
+        -c /run/config/credentials \
+        -s /app/settings.json
 
 ## Stopping The Container
 
@@ -183,7 +192,7 @@ If you used Compose, run:
 ## Troubleshooting
 
 - If Docker says a bind mount source file is missing, verify `$HOME/credentials` exists.
-- If app startup fails with `permission denied` on `/run/secrets/CREDENTIALS_FILE`, ensure `VX_UID` and `VX_GID` match the process user in the container.
+- If app startup fails with `permission denied` on `/run/secrets/CREDENTIALS_FILE`, pass `--user` with the UID/GID that owns the credentials file for direct `docker run`, or ensure `VX_UID` and `VX_GID` match that owner for Compose.
 - If app startup fails due to credentials permissions for direct bind mounts, run `chmod 600 ~/credentials`.
 - If startup fails with bucket readiness timeouts, increase `BUCKET_READY_TIMEOUT_SECONDS`.
 - If Compose command is not found, install Docker Desktop or the Docker Compose plugin.
