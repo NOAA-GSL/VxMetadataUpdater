@@ -120,6 +120,7 @@ jobs:
     needs: build-vxmetadataupdater
     permissions:
       packages: read
+      security-events: write
     env:
       TRIVY_DISABLE_VEX_NOTICE: true
     steps:
