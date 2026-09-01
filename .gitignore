@@ -35,9 +35,8 @@ go.work.sum
 .history/
 
 # Project build outputs
-/vximporter
+/VxMetadataUpdater
 /vxMetadataUpdater
 /vxMetadataUpdater.exe
-/cbimporter
 /bin/
 /dist/
