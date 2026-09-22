@@ -11,8 +11,8 @@ WHERE NOT EXISTS (
         SELECT 1
         FROM {{vxDBTARGET}} AS mt
         WHERE mt.type = "DD"
-            AND mt.docType = {{vxDOCTYPE}}
-            AND mt.subDocType = {{vxSUBDOCTYPE}}
+            AND mt.docType = "{{vxDOCTYPE}}"
+            AND mt.subDocType = "{{vxSUBDOCTYPE}}"
             AND mt.version = "V01"
             AND mt.model = mn
         LIMIT 1
