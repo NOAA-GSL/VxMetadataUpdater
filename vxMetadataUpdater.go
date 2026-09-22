@@ -180,6 +180,9 @@ func updateMetadataForAppDocType(cred Credentials, conn CbConnection, name strin
 	log.Println("updateMetadataForAppDocType(" + name + "," + doctype + ")")
 
 	// change connection to point to required collection
+	if collection == "" {
+		collection = cred.Cb_collection
+	}
 	conn.Collection = conn.Bucket.Collection(collection)
 	conn.vxDBTARGET = cred.Cb_bucket + "." + cred.Cb_scope + "." + collection
 	validateQueryParam("vxDBTARGET", conn.vxDBTARGET)
