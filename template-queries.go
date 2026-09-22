@@ -72,7 +72,7 @@ func getModels(conn CbConnection, dataset string, app string, doctype string, su
 // getModelsNoData returns model names that have a metadata document but no matching DD data records.
 func getModelsNoData(conn CbConnection, dataset string, app string, doctype string, subDocType string) (jsonOut []string) {
 	log.Println("getModelsNoData(" + dataset + "," + app + "," + doctype + "," + subDocType + ")")
-	validateQueryParam("app", app)
+	validateQueryParam("dataset", dataset)
 	validateQueryParam("doctype", doctype)
 	validateQueryParam("subDocType", subDocType)
 	fileContent, err := readSQLTemplate("getModelsNoData.sql")
@@ -82,7 +82,7 @@ func getModelsNoData(conn CbConnection, dataset string, app string, doctype stri
 	tmplgetModelsNoDataSQL := string(fileContent)
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxDOCTYPE}}", doctype, -1)
-	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxAPP}}", app, -1)
+	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxDATASET}}", dataset, -1)
 	tmplgetModelsNoDataSQL = strings.Replace(tmplgetModelsNoDataSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	models_with_metatada_but_no_data := queryWithSQLStringSA(conn.Scope, tmplgetModelsNoDataSQL)
 	return models_with_metatada_but_no_data
@@ -139,6 +139,24 @@ func getDistinctRegion(conn CbConnection, dataset string, app string, doctype st
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
 	result := queryWithSQLStringSA(conn.Scope, tmplSQL)
+	return result
+}
+
+func getDistinctLevel(conn CbConnection, dataset string, app string, doctype string, subDocType string, model string) (rv []int) {
+	log.Println("getDistinctLevel(" + dataset + "," + app + "," + doctype + "," + subDocType + "," + model + ")")
+	validateQueryParam("doctype", doctype)
+	validateQueryParam("subDocType", subDocType)
+	validateQueryParam("model", model)
+	fileContent, err := readSQLTemplate("getDistinctLevel.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmplSQL := string(fileContent)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
+	result := queryWithSQLStringIA(conn.Scope, tmplSQL)
 	return result
 }
 

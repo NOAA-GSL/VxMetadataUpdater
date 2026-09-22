@@ -21,6 +21,7 @@ type ConfigJSON struct {
 		App        string   `json:"app"`
 		SubDocType string   `json:"subDocType"`
 		DocType    StrArray `json:"docType"`
+		Collection string   `json:"collection"`
 	} `json:"metadata"`
 }
 
@@ -136,7 +137,7 @@ func main() {
 		}
 		for dt := 0; dt < len(conf.Metadata[ds].DocType); dt++ {
 			log.Println("Metadata:" + conf.Metadata[ds].Name + ",DocType:" + conf.Metadata[ds].DocType[dt])
-			updateMetadataForAppDocType(conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType, path)
+			updateMetadataForAppDocType(credentials, conn, conf.Metadata[ds].Name, conf.Metadata[ds].App, conf.Metadata[ds].DocType[dt], conf.Metadata[ds].SubDocType, conf.Metadata[ds].Collection, path)
 		}
 	}
 
@@ -175,8 +176,15 @@ func countSelectedMetadataOutputs(conf ConfigJSON, app string) int {
 
 // updateMetadataForAppDocType queries Couchbase for all models matching app/doctype/subDocType,
 // assembles a MetadataJSON document, and writes it via writeMetadata.
-func updateMetadataForAppDocType(conn CbConnection, name string, app string, doctype string, subDocType string, path string) {
+func updateMetadataForAppDocType(cred Credentials, conn CbConnection, name string, app string, doctype string, subDocType string, collection string, path string) {
 	log.Println("updateMetadataForAppDocType(" + name + "," + doctype + ")")
+
+	// change connection to point to required collection
+	conn.Collection = conn.Bucket.Collection(collection)
+	conn.vxDBTARGET = cred.Cb_bucket + "." + cred.Cb_scope + "." + collection
+	validateQueryParam("vxDBTARGET", conn.vxDBTARGET)
+
+	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
 
 	// get needed models
 	models := getModels(conn, name, app, doctype, subDocType)
@@ -201,6 +209,11 @@ func updateMetadataForAppDocType(conn CbConnection, name string, app string, doc
 		log.Println(fcstLen)
 		region := getDistinctRegion(conn, name, app, doctype, subDocType, m)
 		log.Println(region)
+		level := []int{-9999}
+		if subDocType == "UPPERAIR" {
+			level := getDistinctLevel(conn, name, app, doctype, subDocType, m)
+			log.Println(level)
+		}
 		displayText := getDistinctDisplayText(conn, name, app, doctype, subDocType, m)
 		log.Println(displayText)
 		displayCategory := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, m)
@@ -223,6 +236,7 @@ func updateMetadataForAppDocType(conn CbConnection, name string, app string, doc
 		model.Model = models[i]
 		model.FcstLens = fcstLen
 		model.Regions = region
+		model.Levels = level
 		if len(displayText) > 0 {
 			model.DisplayText = displayText[0]
 		}
