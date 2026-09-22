@@ -10,8 +10,8 @@ FROM model_names AS mn LET dd_count = (
         SELECT RAW COUNT(*)
         FROM {{vxDBTARGET}} AS mt
         WHERE mt.type = "DD"
-            AND mt.docType = {{vxDOCTYPE}}
-            AND mt.subDocType = {{vxSUBDOCTYPE}}
+            AND mt.docType = "{{vxDOCTYPE}}"
+            AND mt.subDocType = "{{vxSUBDOCTYPE}}"
             AND mt.version = "V01"
             AND mt.model = mn.model
     ) [0]
