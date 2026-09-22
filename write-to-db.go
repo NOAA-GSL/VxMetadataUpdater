@@ -14,7 +14,7 @@ type Model struct {
 	DisplayText     string   `json:"displayText"`
 	DocType         string   `json:"docType"`
 	FcstLens        []int    `json:"fcstLens"`
-	Levels          []int    `json:"levels"`
+	Levels          []int    `json:"levels,omitempty"`
 	Maxdate         int      `json:"maxdate"`
 	Mindate         int      `json:"mindate"`
 	Model           string   `json:"model"`

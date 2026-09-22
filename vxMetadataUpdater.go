@@ -212,11 +212,6 @@ func updateMetadataForAppDocType(cred Credentials, conn CbConnection, name strin
 		log.Println(fcstLen)
 		region := getDistinctRegion(conn, name, app, doctype, subDocType, m)
 		log.Println(region)
-		level := []int{-9999}
-		if subDocType == "UPPERAIR" {
-			level := getDistinctLevel(conn, name, app, doctype, subDocType, m)
-			log.Println(level)
-		}
 		displayText := getDistinctDisplayText(conn, name, app, doctype, subDocType, m)
 		log.Println(displayText)
 		displayCategory := getDistinctDisplayCategory(conn, name, app, doctype, subDocType, m)
@@ -239,7 +234,10 @@ func updateMetadataForAppDocType(cred Credentials, conn CbConnection, name strin
 		model.Model = models[i]
 		model.FcstLens = fcstLen
 		model.Regions = region
-		model.Levels = level
+		if subDocType == "UPPERAIR" {
+			model.Levels = getDistinctLevel(conn, name, app, doctype, subDocType, m)
+			log.Println(model.Levels)
+		}
 		if len(displayText) > 0 {
 			model.DisplayText = displayText[0]
 		}
