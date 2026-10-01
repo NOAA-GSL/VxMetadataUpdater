@@ -101,6 +101,7 @@ func TestCountSelectedMetadataOutputs(t *testing.T) {
 			App        string   `json:"app"`
 			SubDocType string   `json:"subDocType"`
 			DocType    StrArray `json:"docType"`
+			Collection string   `json:"collection"`
 		}{
 			{Name: "ceiling", DocType: StrArray{"CTC"}},
 			{Name: "surface", DocType: StrArray{"SUMS", "CTC"}},

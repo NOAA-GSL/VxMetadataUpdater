@@ -6,7 +6,8 @@
             "docType": [
                 "CTC"
             ],
-            "subDocType": "CEILING"
+            "subDocType": "CEILING",
+            "collection": "METAR"
         },
         {
             "name": "visibility",
@@ -14,7 +15,8 @@
             "docType": [
                 "CTC"
             ],
-            "subDocType": "VISIBILITY"
+            "subDocType": "VISIBILITY",
+            "collection": "METAR"
         },
         {
             "name": "surface",
@@ -22,7 +24,17 @@
             "docType": [
                 "SUMS"
             ],
-            "subDocType": "SURFACE"
+            "subDocType": "SURFACE",
+            "collection": "METAR"
+        },
+        {
+            "name": "raob",
+            "app": "cb-raob",
+            "docType": [
+                "SUMS"
+            ],
+            "subDocType": "UPPERAIR",
+            "collection": "RAOB"
         }
     ]
 }

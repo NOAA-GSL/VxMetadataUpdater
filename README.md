@@ -19,6 +19,7 @@ Example app names from the default settings:
 - `ceiling`
 - `visibility`
 - `surface`
+- `raob`
 
 The generated JSON includes model metadata such as:
 
@@ -33,6 +34,8 @@ The generated JSON includes model metadata such as:
 
 For `docType == SUMS`, data keys are written to `variables`.
 For other docTypes (for example `CTC`), data keys are written to `thresholds`.
+
+For `collection == RAOB`, levels are included in the model metadata.
 
 ## Requirements
 
@@ -253,6 +256,7 @@ Current templates include:
 - `getDistinctDataKeys.sql`
 - `getDistinctFcstLen.sql`
 - `getDistinctRegion.sql`
+- `getDistinctLevel.sql`
 - `getDistinctDisplayText.sql`
 - `getDistinctDisplayCategory.sql`
 - `getDistinctDisplayOrder.sql`
