@@ -170,7 +170,7 @@ func getDistinctDisplayText(conn CbConnection, dataset string, app string, docty
 		log.Fatal(err)
 	}
 	tmplSQL := string(fileContent)
-	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGETCOMMON, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
@@ -188,7 +188,7 @@ func getDistinctDisplayCategory(conn CbConnection, dataset string, app string, d
 		log.Fatal(err)
 	}
 	tmplSQL := string(fileContent)
-	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGETCOMMON, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)
@@ -206,7 +206,7 @@ func getDistinctDisplayOrder(conn CbConnection, dataset string, app string, doct
 		log.Fatal(err)
 	}
 	tmplSQL := string(fileContent)
-	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGET, -1)
+	tmplSQL = strings.Replace(tmplSQL, "{{vxDBTARGET}}", conn.vxDBTARGETCOMMON, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxDOCTYPE}}", doctype, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxSUBDOCTYPE}}", subDocType, -1)
 	tmplSQL = strings.Replace(tmplSQL, "{{vxMODEL}}", model, -1)

@@ -16,11 +16,12 @@ import (
 // CbConnection bundles the live Couchbase handles needed for queries.
 // vxDBTARGET is the N1QL FROM target in "bucket.scope.collection" form.
 type CbConnection struct {
-	Cluster    *gocb.Cluster
-	Bucket     *gocb.Bucket
-	Scope      *gocb.Scope
-	Collection *gocb.Collection
-	vxDBTARGET string
+	Cluster          *gocb.Cluster
+	Bucket           *gocb.Bucket
+	Scope            *gocb.Scope
+	Collection       *gocb.Collection
+	vxDBTARGET       string
+	vxDBTARGETCOMMON string
 }
 
 var queryProfilingConfig = struct {
@@ -219,6 +220,11 @@ func getDbConnection(cred Credentials) (conn CbConnection) {
 	validateQueryParam("vxDBTARGET", conn.vxDBTARGET)
 
 	log.Println("vxDBTARGET:" + conn.vxDBTARGET)
+
+	conn.vxDBTARGETCOMMON = cred.Cb_bucket + "." + cred.Cb_scope + ".COMMON"
+	validateQueryParam("vxDBTARGETCOMMON", conn.vxDBTARGETCOMMON)
+
+	log.Println("vxDBTARGETCOMMON:" + conn.vxDBTARGETCOMMON)
 
 	err = conn.Bucket.WaitUntilReady(bucketReadyTimeout(), nil)
 	if err != nil {
